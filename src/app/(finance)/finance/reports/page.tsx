@@ -25,7 +25,7 @@ export default function ReportsPage() {
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
 
-  async function loadReportData() {
+  const loadReportData = React.useCallback(async () => {
     try {
       setLoadingState(createLoadingState(true, "Gathering financial records..."));
       setErrorState(createErrorState(false));
@@ -47,37 +47,52 @@ export default function ReportsPage() {
       ));
       setLoadingState(createLoadingState(false));
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadReportData();
-  }, []);
+  }, [loadReportData]);
 
-  function handleTriggerExport(format: "PDF" | "CSV") {
+  // Simulated Report Data Tables - Memoized
+  const taxLiabilities = React.useMemo(() => [
+    { jurisdiction: "India (GST)", serviceType: "Professional IT Services", rate: "18%", collected: 24500, details: "9% CGST ($12,250) + 9% SGST ($12,250)" },
+    { jurisdiction: "United Kingdom (VAT)", serviceType: "SaaS Subscriptions", rate: "20%", collected: 14800, details: "VAT standard rate registration" },
+    { jurisdiction: "Germany (VAT)", serviceType: "LMS Course Licensing", rate: "19%", collected: 8600, details: "EU reverse-charge exempted" },
+    { jurisdiction: "United States", serviceType: "Corporate Workspaces", rate: "Varies", collected: 6200, details: "TaxJar automated multi-state API" }
+  ], []);
+
+  const plItems = React.useMemo(() => [
+    { category: "Revenues", label: "Monthly Recurring Revenue (MRR)", amount: totals?.activeSubscriptionRevenue || 168000, type: "income" as const },
+    { category: "Revenues", label: "One-time Contract Setup Fees", amount: 15400, type: "income" as const },
+    { category: "Revenues", label: "LMS Course Access Purchases", amount: 12800, type: "income" as const },
+    { category: "Expenses", label: "Approved Corporate Expenses", amount: totals?.approvedExpenses || 4049, type: "expense" as const },
+    { category: "Expenses", label: "Stripe & Gateway Transaction Fees", amount: 4850, type: "expense" as const },
+    { category: "Expenses", label: "SendGrid & SaaS Subscriptions", amount: 1200, type: "expense" as const }
+  ], [totals?.activeSubscriptionRevenue, totals?.approvedExpenses]);
+
+  const { totalIncome, totalExpense, netIncome } = React.useMemo(() => {
+    const tInc = plItems.filter(i => i.type === "income").reduce((s, i) => s + i.amount, 0);
+    const tExp = plItems.filter(i => i.type === "expense").reduce((s, i) => s + i.amount, 0);
+    return { totalIncome: tInc, totalExpense: tExp, netIncome: tInc - tExp };
+  }, [plItems]);
+
+  async function handleTriggerExport(format: "PDF" | "CSV") {
     if (format === "CSV") {
       setExporting(true);
       setExportMessage(`Compiling CSV records for ${dateRange}...`);
       
-      setTimeout(() => {
-        let csvContent = "data:text/csv;charset=utf-8,";
+      try {
+        const { exportService } = await import("@/services/export_service");
+        
+        let data: any[] = [];
         if (reportType === "pl") {
-          csvContent += "Category,Label,Amount\n";
-          plItems.forEach(item => {
-            csvContent += `"${item.category}","${item.label}",${item.amount}\n`;
-          });
+          data = plItems.map(item => ({ Category: item.category, Label: item.label, Amount: item.amount }));
         } else if (reportType === "tax") {
-          csvContent += "Jurisdiction,Service Type,Rate,Collected,Details\n";
-          taxLiabilities.forEach(item => {
-            csvContent += `"${item.jurisdiction}","${item.serviceType}","${item.rate}",${item.collected},"${item.details}"\n`;
-          });
+          data = taxLiabilities;
         } else if (reportType === "ar") {
-          csvContent += "Bucket,Amount,Invoices Count\n";
-          arAgeing.forEach(item => {
-            csvContent += `"${item.bucket}",${item.amount},${item.invoicesCount}\n`;
-          });
+          data = arAgeing.map(item => ({ Bucket: item.bucket, Amount: item.amount, "Invoices Count": item.invoicesCount }));
         } else if (reportType === "dept") {
-          csvContent += "Department,Percentage,Approved,Pending,Cap\n";
-          const depts = [
+          data = [
             { dept: "Engineering", approved: "24500", pending: "620", cap: "30000", percentage: "81%" },
             { dept: "Sales", approved: "12800", pending: "0", cap: "20000", percentage: "64%" },
             { dept: "Marketing", approved: "9600", pending: "0", cap: "15000", percentage: "64%" },
@@ -85,25 +100,21 @@ export default function ReportsPage() {
             { dept: "Finance", approved: "1400", pending: "145", cap: "5000", percentage: "28%" },
             { dept: "Operations", approved: "1300", pending: "0", cap: "5000", percentage: "26%" }
           ];
-          depts.forEach(item => {
-            csvContent += `"${item.dept}","${item.percentage}",${item.approved},${item.pending},${item.cap}\n`;
-          });
         } else {
-          csvContent += "KPI Name,Value\n";
-          csvContent += `"MRR Expansion Rate","12.4%"\n"Subscription Churn","1.2%"\n"Payment Collection Period","14 Days"\n`;
+          data = [
+            { "KPI Name": "MRR Expansion Rate", Value: "12.4%" },
+            { "KPI Name": "Subscription Churn", Value: "1.2%" },
+            { "KPI Name": "Payment Collection Period", Value: "14 Days" }
+          ];
         }
 
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `lti_finance_report_${reportType}_${dateRange}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
+        exportService.exportToCSV(data, `lti_finance_report_${reportType}_${dateRange}`);
+      } catch (err) {
+        console.error("Export failed", err);
+      } finally {
         setExporting(false);
         setExportMessage("");
-      }, 1000);
+      }
     } else {
       setExporting(true);
       setExportMessage(`Optimizing page layout for PDF generation...`);
@@ -114,27 +125,6 @@ export default function ReportsPage() {
       }, 800);
     }
   }
-
-  // Simulated Report Data Tables
-  const taxLiabilities = [
-    { jurisdiction: "India (GST)", serviceType: "Professional IT Services", rate: "18%", collected: 24500, details: "9% CGST ($12,250) + 9% SGST ($12,250)" },
-    { jurisdiction: "United Kingdom (VAT)", serviceType: "SaaS Subscriptions", rate: "20%", collected: 14800, details: "VAT standard rate registration" },
-    { jurisdiction: "Germany (VAT)", serviceType: "LMS Course Licensing", rate: "19%", collected: 8600, details: "EU reverse-charge exempted" },
-    { jurisdiction: "United States", serviceType: "Corporate Workspaces", rate: "Varies", collected: 6200, details: "TaxJar automated multi-state API" }
-  ];
-
-  const plItems = [
-    { category: "Revenues", label: "Monthly Recurring Revenue (MRR)", amount: totals?.activeSubscriptionRevenue || 168000, type: "income" as const },
-    { category: "Revenues", label: "One-time Contract Setup Fees", amount: 15400, type: "income" as const },
-    { category: "Revenues", label: "LMS Course Access Purchases", amount: 12800, type: "income" as const },
-    { category: "Expenses", label: "Approved Corporate Expenses", amount: totals?.approvedExpenses || 4049, type: "expense" as const },
-    { category: "Expenses", label: "Stripe & Gateway Transaction Fees", amount: 4850, type: "expense" as const },
-    { category: "Expenses", label: "SendGrid & SaaS Subscriptions", amount: 1200, type: "expense" as const }
-  ];
-
-  const totalIncome = plItems.filter(i => i.type === "income").reduce((s, i) => s + i.amount, 0);
-  const totalExpense = plItems.filter(i => i.type === "expense").reduce((s, i) => s + i.amount, 0);
-  const netIncome = totalIncome - totalExpense;
 
   return (
     <div className="space-y-8 animate-fade-in">
