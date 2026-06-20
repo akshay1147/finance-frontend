@@ -15,7 +15,7 @@ import {
   FileText,
   AlertTriangle
 } from "lucide-react";
-import { Invoice, updateInvoice, recordPayment, TAX_CODES, Payment } from "@/services/api";
+import { Invoice, updateInvoice, recordPayment } from "@/services/api";
 import { useRole } from "@/context/RoleContext";
 
 interface InvoiceDetailPanelProps {

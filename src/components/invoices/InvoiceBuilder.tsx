@@ -214,7 +214,7 @@ export default function InvoiceBuilder({ onSave, onCancel }: InvoiceBuilderProps
                 />
               </div>
 
-              <div className="col-span-4 md:col-span-1.5 flex flex-col space-y-1">
+              <div className="col-span-4 md:col-span-2 flex flex-col space-y-1">
                 <label className="text-[10px] text-slate-500 font-semibold uppercase">Qty</label>
                 <input
                   type="number"
@@ -255,7 +255,7 @@ export default function InvoiceBuilder({ onSave, onCancel }: InvoiceBuilderProps
                 </select>
               </div>
 
-              <div className="col-span-4 md:col-span-1.5 flex flex-col justify-end items-end space-y-1 px-1">
+              <div className="col-span-4 md:col-span-2 flex flex-col justify-end items-end space-y-1 px-1">
                 <div className="text-[10px] text-slate-500 font-semibold uppercase">Line Total</div>
                 <div className="text-xs font-bold text-slate-200 py-2.5">
                   {new Intl.NumberFormat("en-US", { style: "currency", currency }).format(item.total)}
@@ -330,7 +330,7 @@ export default function InvoiceBuilder({ onSave, onCancel }: InvoiceBuilderProps
         </button>
         <button
           type="submit"
-          className="flex items-center space-x-1.5 px-4.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 rounded-xl transition-all shadow-lg shadow-purple-500/10"
+          className="flex items-center space-x-1.5 px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 rounded-xl transition-all shadow-lg shadow-purple-500/10"
         >
           <Save size={14} />
           <span>Save Invoice Draft</span>
