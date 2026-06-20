@@ -14,12 +14,16 @@ import {
   Upload,
   Clock
 } from "lucide-react";
-import { Expense } from "@/lib/mockData";
+import { apiClient } from "@/services/api_client";
+import { Expense } from "@/types/expense";
+import { createLoadingState, LoadingState } from "@/states/loading";
+import { createErrorState, ErrorState } from "@/states/error";
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState<LoadingState>(createLoadingState(true, "Loading expenses..."));
+  const [errorState, setErrorState] = useState<ErrorState>(createErrorState(false));
 
   // Filters & Search
   const [search, setSearch] = useState("");
@@ -43,15 +47,24 @@ export default function ExpensesPage() {
 
   async function fetchExpenses() {
     try {
-      setLoading(true);
-      const res = await fetch("/api/finance/expenses");
-      if (!res.ok) throw new Error("Failed to load expenses list.");
-      const data = await res.json();
-      setExpenses(data);
-    } catch (err) {
-      console.error("Failed to load expenses:", err);
-    } finally {
-      setLoading(false);
+      setLoadingState(createLoadingState(true, "Fetching corporate claims..."));
+      setErrorState(createErrorState(false));
+      const res = await apiClient.get<Expense[]>("/finance/expenses");
+      
+      if (!res.success) {
+        throw new Error(res.message || "Failed to load expenses list.");
+      }
+
+      setExpenses(res.data || []);
+      setLoadingState(createLoadingState(false));
+    } catch (err: any) {
+      setErrorState(createErrorState(
+        true,
+        err.message || "Could not retrieve expense claims.",
+        "EXPENSES_FETCH_ERROR",
+        `TR-${Math.floor(100000 + Math.random() * 900000)}`
+      ));
+      setLoadingState(createLoadingState(false));
     }
   }
 
@@ -94,68 +107,61 @@ export default function ExpensesPage() {
     if (!formEmployee.trim() || !formNotes.trim()) return;
 
     try {
-      const res = await fetch("/api/finance/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          employee_name: formEmployee,
-          category: formCategory,
-          amount: formAmount,
-          department: formDept,
-          notes: formNotes,
-          receipt_url: receiptName ? `/cloudinary/receipts/${receiptName}` : undefined
-        })
+      setLoadingState(createLoadingState(true, "Registering expense claim..."));
+      const res = await apiClient.post<Expense>("/finance/expenses", {
+        employee_name: formEmployee,
+        category: formCategory,
+        amount: formAmount,
+        department: formDept,
+        notes: formNotes,
+        receipt_url: receiptName ? `/cloudinary/receipts/${receiptName}` : undefined
       });
 
-      if (!res.ok) throw new Error("Failed to register expense claim.");
+      if (!res.success) throw new Error(res.message || "Failed to register expense claim.");
 
       setFormNotes("");
       setReceiptName("");
       setIsSubmitModalOpen(false);
       fetchExpenses();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to submit claim.";
-      alert(msg);
+    } catch (err: any) {
+      alert(err.message || "Failed to submit claim.");
+      setLoadingState(createLoadingState(false));
     }
   }
 
   // Verify/Approve Claim
   async function handleApprove(id: string) {
     try {
-      const res = await fetch("/api/finance/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "approve", id })
-      });
-      if (!res.ok) throw new Error("Failed to approve claim.");
+      setLoadingState(createLoadingState(true, "Authorizing reimbursement..."));
+      const res = await apiClient.post<null>("/finance/expenses", { action: "approve", id });
+      
+      if (!res.success) throw new Error(res.message || "Failed to approve claim.");
       
       if (selectedExpense && selectedExpense.id === id) {
         setSelectedExpense({ ...selectedExpense, status: "Approved" });
       }
       fetchExpenses();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to approve claim.";
-      alert(msg);
+    } catch (err: any) {
+      alert(err.message || "Failed to approve claim.");
+      setLoadingState(createLoadingState(false));
     }
   }
 
   // Reject Claim
   async function handleReject(id: string) {
     try {
-      const res = await fetch("/api/finance/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reject", id })
-      });
-      if (!res.ok) throw new Error("Failed to reject claim.");
+      setLoadingState(createLoadingState(true, "Recording rejection..."));
+      const res = await apiClient.post<null>("/finance/expenses", { action: "reject", id });
+      
+      if (!res.success) throw new Error(res.message || "Failed to reject claim.");
 
       if (selectedExpense && selectedExpense.id === id) {
         setSelectedExpense({ ...selectedExpense, status: "Rejected" });
       }
       fetchExpenses();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to reject claim.";
-      alert(msg);
+    } catch (err: any) {
+      alert(err.message || "Failed to reject claim.");
+      setLoadingState(createLoadingState(false));
     }
   }
 
@@ -270,9 +276,15 @@ export default function ExpensesPage() {
             </div>
 
             {/* List */}
-            {loading ? (
-              <div className="py-10 text-center text-slate-500 text-sm">
-                Loading claims list...
+            {loadingState.isLoading && !expenses.length ? (
+              <div className="py-10 text-center text-slate-500 text-sm flex flex-col items-center justify-center gap-2">
+                <div className="w-6 h-6 rounded-full border-2 border-slate-800 border-t-blue-500 animate-spin"></div>
+                <span>{loadingState.message || "Loading claims list..."}</span>
+              </div>
+            ) : errorState.isError ? (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-xl space-y-1.5 animate-fade-in shadow-lg">
+                <p className="text-xs font-semibold">{errorState.error_message}</p>
+                <p className="text-[10px] text-slate-500 font-mono">Code: {errorState.error_code} | Trace: {errorState.trace_id}</p>
               </div>
             ) : filteredExpenses.length === 0 ? (
               <div className="py-10 text-center text-slate-500 text-sm">

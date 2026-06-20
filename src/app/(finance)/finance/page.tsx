@@ -10,41 +10,52 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react";
-import { Subscription, Expense } from "@/lib/mockData";
+import { apiClient } from "@/services/api_client";
+import { Subscription } from "@/types/subscription";
+import { Expense } from "@/types/expense";
+import { createLoadingState, LoadingState } from "@/states/loading";
+import { createErrorState, ErrorState } from "@/states/error";
 
 export default function FinanceDashboard() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadingState, setLoadingState] = useState<LoadingState>(createLoadingState(true, "Fetching financial summaries..."));
+  const [errorState, setErrorState] = useState<ErrorState>(createErrorState(false));
+  const [lastRefreshed, setLastRefreshed] = useState<string>("");
+
+  async function fetchData() {
+    try {
+      setLoadingState(createLoadingState(true, "Updating financial summaries..."));
+      setErrorState(createErrorState(false));
+      
+      const [subsRes, expsRes] = await Promise.all([
+        apiClient.get<Subscription[]>("/finance/subscriptions"),
+        apiClient.get<Expense[]>("/finance/expenses")
+      ]);
+
+      if (!subsRes.success || !expsRes.success) {
+        throw new Error(subsRes.message || expsRes.message || "Failed to retrieve dashboard data from APIs");
+      }
+
+      setSubscriptions(subsRes.data || []);
+      setExpenses(expsRes.data || []);
+      setLastRefreshed(new Date().toLocaleTimeString());
+      setLoadingState(createLoadingState(false));
+    } catch (err: any) {
+      setErrorState(createErrorState(
+        true,
+        err.message || "An unexpected error occurred during fetch.",
+        "DASHBOARD_LOAD_ERROR",
+        `TR-${Math.floor(100000 + Math.random() * 900000)}`
+      ));
+      setLoadingState(createLoadingState(false));
+    }
+  }
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const [subsRes, expsRes] = await Promise.all([
-          fetch("/api/finance/subscriptions"),
-          fetch("/api/finance/expenses")
-        ]);
-
-        if (!subsRes.ok || !expsRes.ok) {
-          throw new Error("Failed to retrieve dashboard data from APIs");
-        }
-
-        const subsData = await subsRes.json();
-        const expsData = await expsRes.json();
-
-        setSubscriptions(subsData);
-        setExpenses(expsData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An unexpected error occurred.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchData();
   }, []);
 
@@ -77,9 +88,16 @@ export default function FinanceDashboard() {
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
-              <Sparkles className="w-4 h-4" />
-              <span>Portal 6 Dashboard Live</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
+                <Sparkles className="w-4 h-4" />
+                <span>Portal 6 Dashboard Live</span>
+              </div>
+              {lastRefreshed && (
+                <span className="text-[10px] text-slate-500 font-semibold bg-slate-950 border border-slate-850 px-2 py-0.5 rounded-md">
+                  Refreshed: {lastRefreshed}
+                </span>
+              )}
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
               Finance & Billing Portal
@@ -90,6 +108,14 @@ export default function FinanceDashboard() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <button
+              onClick={fetchData}
+              disabled={loadingState.isLoading}
+              className="bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 font-medium px-4 py-2.5 rounded-xl transition-all duration-200 text-sm flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingState.isLoading ? "animate-spin text-blue-400" : "text-slate-400"}`} />
+              <span>Refresh Metrics</span>
+            </button>
             <Link
               href="/finance/subscriptions"
               className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-blue-600/20 text-sm flex items-center gap-2"
@@ -97,28 +123,32 @@ export default function FinanceDashboard() {
               <span>Manage Subscriptions</span>
               <ArrowUpRight className="w-4 h-4" />
             </Link>
-            <Link
-              href="/finance/expenses"
-              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium px-5 py-2.5 rounded-xl transition-all duration-200 text-sm flex items-center gap-2"
-            >
-              <span>Verify Expenses</span>
-              <ArrowUpRight className="w-4 h-4" />
-            </Link>
           </div>
         </div>
       </div>
 
-      {loading ? (
+      {loadingState.isLoading && !subscriptions.length ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <div className="w-12 h-12 rounded-full border-4 border-slate-800 border-t-blue-500 animate-spin"></div>
-          <p className="text-slate-400 text-sm font-medium">Fetching financial summaries...</p>
+          <p className="text-slate-400 text-sm font-medium">{loadingState.message || "Fetching financial summaries..."}</p>
         </div>
-      ) : error ? (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-6 rounded-2xl flex items-center gap-4">
+      ) : errorState.isError ? (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-6 rounded-2xl flex items-center gap-4 shadow-lg">
           <AlertTriangle className="w-8 h-8 text-red-500 shrink-0" />
-          <div>
+          <div className="space-y-1">
             <h3 className="font-bold text-lg">Failed to load Dashboard</h3>
-            <p className="text-sm text-red-300/80">{error}</p>
+            <p className="text-sm text-red-300/80">{errorState.error_message}</p>
+            <div className="flex gap-4 pt-1.5 text-[10px] font-mono text-slate-500">
+              <span>Code: {errorState.error_code}</span>
+              <span>Trace: {errorState.trace_id}</span>
+            </div>
+            <button
+              onClick={fetchData}
+              className="mt-3 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Try Again</span>
+            </button>
           </div>
         </div>
       ) : (

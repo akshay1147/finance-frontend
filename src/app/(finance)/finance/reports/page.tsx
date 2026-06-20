@@ -4,64 +4,115 @@ import React, { useState, useEffect } from "react";
 import {
   Calendar,
   Download,
-  Percent
+  Percent,
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react";
-
-interface ReportTotals {
-  activeSubscriptionRevenue: number;
-  approvedExpenses: number;
-  invoiceCount: number;
-  expenseCount: number;
-}
-
-interface ARAgeingItem {
-  bucket: string;
-  amount: number;
-  invoicesCount: number;
-}
+import { apiClient } from "@/services/api_client";
+import { ReportTotals, ARAgeingItem } from "@/types/report";
+import { createLoadingState, LoadingState } from "@/states/loading";
+import { createErrorState, ErrorState } from "@/states/error";
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<"financial" | "operational">("financial");
   const [reportType, setReportType] = useState("pl");
   const [dateRange, setDateRange] = useState("Q2-2026");
-  const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState<LoadingState>(createLoadingState(true, "Compiling reports data..."));
+  const [errorState, setErrorState] = useState<ErrorState>(createErrorState(false));
 
   const [totals, setTotals] = useState<ReportTotals | null>(null);
   const [arAgeing, setArAgeing] = useState<ARAgeingItem[]>([]);
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
 
-  useEffect(() => {
-    async function loadReportData() {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/finance/reports");
-        if (res.ok) {
-          const data = await res.json();
-          setTotals(data.totals);
-          setArAgeing(data.arAgeing);
-        }
-      } catch (err) {
-        console.error("Error loading report metrics:", err);
-      } finally {
-        setLoading(false);
+  async function loadReportData() {
+    try {
+      setLoadingState(createLoadingState(true, "Gathering financial records..."));
+      setErrorState(createErrorState(false));
+      const res = await apiClient.get<any>("/finance/reports");
+      
+      if (!res.success) {
+        throw new Error(res.message || "Failed to load report metrics.");
       }
+
+      setTotals(res.data?.totals || null);
+      setArAgeing(res.data?.arAgeing || []);
+      setLoadingState(createLoadingState(false));
+    } catch (err: any) {
+      setErrorState(createErrorState(
+        true,
+        err.message || "Could not retrieve financial report details.",
+        "REPORTS_FETCH_ERROR",
+        `TR-${Math.floor(100000 + Math.random() * 900000)}`
+      ));
+      setLoadingState(createLoadingState(false));
     }
+  }
+
+  useEffect(() => {
     loadReportData();
   }, []);
 
   function handleTriggerExport(format: "PDF" | "CSV") {
-    setExporting(true);
-    setExportMessage(`Compiling records for ${dateRange}...`);
-    
-    setTimeout(() => {
-      setExportMessage(`Uploading document package to Cloudinary secure path...`);
+    if (format === "CSV") {
+      setExporting(true);
+      setExportMessage(`Compiling CSV records for ${dateRange}...`);
+      
+      setTimeout(() => {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        if (reportType === "pl") {
+          csvContent += "Category,Label,Amount\n";
+          plItems.forEach(item => {
+            csvContent += `"${item.category}","${item.label}",${item.amount}\n`;
+          });
+        } else if (reportType === "tax") {
+          csvContent += "Jurisdiction,Service Type,Rate,Collected,Details\n";
+          taxLiabilities.forEach(item => {
+            csvContent += `"${item.jurisdiction}","${item.serviceType}","${item.rate}",${item.collected},"${item.details}"\n`;
+          });
+        } else if (reportType === "ar") {
+          csvContent += "Bucket,Amount,Invoices Count\n";
+          arAgeing.forEach(item => {
+            csvContent += `"${item.bucket}",${item.amount},${item.invoicesCount}\n`;
+          });
+        } else if (reportType === "dept") {
+          csvContent += "Department,Percentage,Approved,Pending,Cap\n";
+          const depts = [
+            { dept: "Engineering", approved: "24500", pending: "620", cap: "30000", percentage: "81%" },
+            { dept: "Sales", approved: "12800", pending: "0", cap: "20000", percentage: "64%" },
+            { dept: "Marketing", approved: "9600", pending: "0", cap: "15000", percentage: "64%" },
+            { dept: "HR", approved: "3200", pending: "0", cap: "10000", percentage: "32%" },
+            { dept: "Finance", approved: "1400", pending: "145", cap: "5000", percentage: "28%" },
+            { dept: "Operations", approved: "1300", pending: "0", cap: "5000", percentage: "26%" }
+          ];
+          depts.forEach(item => {
+            csvContent += `"${item.dept}","${item.percentage}",${item.approved},${item.pending},${item.cap}\n`;
+          });
+        } else {
+          csvContent += "KPI Name,Value\n";
+          csvContent += `"MRR Expansion Rate","12.4%"\n"Subscription Churn","1.2%"\n"Payment Collection Period","14 Days"\n`;
+        }
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `lti_finance_report_${reportType}_${dateRange}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setExporting(false);
+        setExportMessage("");
+      }, 1000);
+    } else {
+      setExporting(true);
+      setExportMessage(`Optimizing page layout for PDF generation...`);
       setTimeout(() => {
         setExporting(false);
         setExportMessage("");
-        alert(`Success! Generated report exported to Cloudinary: lti-finance/reports/${reportType}_${dateRange}.${format.toLowerCase()}`);
-      }, 1200);
-    }, 1000);
+        window.print();
+      }, 800);
+    }
   }
 
   // Simulated Report Data Tables
@@ -73,12 +124,12 @@ export default function ReportsPage() {
   ];
 
   const plItems = [
-    { category: "Revenues", label: "Monthly Recurring Revenue (MRR)", amount: totals?.activeSubscriptionRevenue || 168000, type: "income" },
-    { category: "Revenues", label: "One-time Contract Setup Fees", amount: 15400, type: "income" },
-    { category: "Revenues", label: "LMS Course Access Purchases", amount: 12800, type: "income" },
-    { category: "Expenses", label: "Approved Corporate Expenses", amount: totals?.approvedExpenses || 4049, type: "expense" },
-    { category: "Expenses", label: "Stripe & Gateway Transaction Fees", amount: 4850, type: "expense" },
-    { category: "Expenses", label: "SendGrid & SaaS Subscriptions", amount: 1200, type: "expense" }
+    { category: "Revenues", label: "Monthly Recurring Revenue (MRR)", amount: totals?.activeSubscriptionRevenue || 168000, type: "income" as const },
+    { category: "Revenues", label: "One-time Contract Setup Fees", amount: 15400, type: "income" as const },
+    { category: "Revenues", label: "LMS Course Access Purchases", amount: 12800, type: "income" as const },
+    { category: "Expenses", label: "Approved Corporate Expenses", amount: totals?.approvedExpenses || 4049, type: "expense" as const },
+    { category: "Expenses", label: "Stripe & Gateway Transaction Fees", amount: 4850, type: "expense" as const },
+    { category: "Expenses", label: "SendGrid & SaaS Subscriptions", amount: 1200, type: "expense" as const }
   ];
 
   const totalIncome = plItems.filter(i => i.type === "income").reduce((s, i) => s + i.amount, 0);
@@ -223,9 +274,28 @@ export default function ReportsPage() {
       </div>
 
       {/* Render Selected Report View */}
-      {loading ? (
-        <div className="py-20 text-center text-slate-500 text-sm">
-          Generating statements...
+      {loadingState.isLoading && !totals ? (
+        <div className="py-20 text-center text-slate-500 text-sm flex flex-col items-center justify-center gap-2">
+          <div className="w-8 h-8 rounded-full border-2 border-slate-800 border-t-blue-500 animate-spin"></div>
+          <span>{loadingState.message || "Generating statements..."}</span>
+        </div>
+      ) : errorState.isError ? (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-6 rounded-2xl flex items-center gap-4 shadow-lg animate-fade-in">
+          <AlertTriangle className="w-8 h-8 text-red-500 shrink-0" />
+          <div className="space-y-1">
+            <h3 className="font-bold text-lg">Failed to compile reports</h3>
+            <p className="text-sm text-red-300/80">{errorState.error_message}</p>
+            <div className="flex gap-4 pt-1.5 text-[10px] font-mono text-slate-500">
+              <span>Code: {errorState.error_code} | Trace: {errorState.trace_id}</span>
+            </div>
+            <button
+              onClick={loadReportData}
+              className="mt-3 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Load</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6">

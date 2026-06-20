@@ -12,12 +12,16 @@ import {
   Info,
   DollarSign
 } from "lucide-react";
-import { Subscription } from "@/lib/mockData";
+import { apiClient } from "@/services/api_client";
+import { Subscription } from "@/types/subscription";
+import { createLoadingState, LoadingState } from "@/states/loading";
+import { createErrorState, ErrorState } from "@/states/error";
 
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [filteredSubs, setFilteredSubs] = useState<Subscription[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState<LoadingState>(createLoadingState(true, "Loading subscriptions..."));
+  const [errorState, setErrorState] = useState<ErrorState>(createErrorState(false));
 
   // Filters & Search
   const [search, setSearch] = useState("");
@@ -39,15 +43,24 @@ export default function SubscriptionsPage() {
 
   async function fetchSubscriptions() {
     try {
-      setLoading(true);
-      const res = await fetch("/api/finance/subscriptions");
-      if (!res.ok) throw new Error("Failed to load subscriptions from API.");
-      const data = await res.json();
-      setSubscriptions(data);
-    } catch (err) {
-      console.error("Failed to fetch subscriptions:", err);
-    } finally {
-      setLoading(false);
+      setLoadingState(createLoadingState(true, "Fetching subscription plans..."));
+      setErrorState(createErrorState(false));
+      const res = await apiClient.get<Subscription[]>("/finance/subscriptions");
+      
+      if (!res.success) {
+        throw new Error(res.message || "Failed to load subscriptions from API.");
+      }
+      
+      setSubscriptions(res.data || []);
+      setLoadingState(createLoadingState(false));
+    } catch (err: any) {
+      setErrorState(createErrorState(
+        true,
+        err.message || "Could not retrieve subscription profiles.",
+        "SUBSCRIPTIONS_FETCH_ERROR",
+        `TR-${Math.floor(100000 + Math.random() * 900000)}`
+      ));
+      setLoadingState(createLoadingState(false));
     }
   }
 
@@ -85,20 +98,17 @@ export default function SubscriptionsPage() {
     if (!newCustomer.trim()) return;
 
     try {
-      const res = await fetch("/api/finance/subscriptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_name: newCustomer,
-          plan: newPlan,
-          amount: newAmount,
-          billing_cycle: newCycle,
-          payment_terms: newTerms,
-          currency: "USD"
-        })
+      setLoadingState(createLoadingState(true, "Registering new subscription contract..."));
+      const res = await apiClient.post<Subscription>("/finance/subscriptions", {
+        customer_name: newCustomer,
+        plan: newPlan,
+        amount: newAmount,
+        billing_cycle: newCycle,
+        payment_terms: newTerms,
+        currency: "USD"
       });
 
-      if (!res.ok) throw new Error("Failed to create subscription.");
+      if (!res.success) throw new Error(res.message || "Failed to create subscription.");
 
       // Reset & Refresh
       setNewCustomer("");
@@ -108,34 +118,31 @@ export default function SubscriptionsPage() {
       setNewTerms("Net-30");
       setIsCreateModalOpen(false);
       fetchSubscriptions();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not complete registration.";
-      alert(msg);
+    } catch (err: any) {
+      alert(err.message || "Could not complete registration.");
+      setLoadingState(createLoadingState(false));
     }
   }
 
   // Update Status Workflow (Cancel/Renew/Suspend)
   async function handleUpdateStatus(id: string, newStatus: Subscription["status"]) {
     try {
-      const res = await fetch("/api/finance/subscriptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update-status",
-          id,
-          status: newStatus
-        })
+      setLoadingState(createLoadingState(true, "Updating contract status..."));
+      const res = await apiClient.post<null>("/finance/subscriptions", {
+        action: "update-status",
+        id,
+        status: newStatus
       });
 
-      if (!res.ok) throw new Error("Failed to update subscription status.");
+      if (!res.success) throw new Error(res.message || "Failed to update subscription status.");
       
       if (selectedSub && selectedSub.id === id) {
         setSelectedSub({ ...selectedSub, status: newStatus });
       }
       fetchSubscriptions();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to edit status.";
-      alert(msg);
+    } catch (err: any) {
+      alert(err.message || "Failed to edit status.");
+      setLoadingState(createLoadingState(false));
     }
   }
 
@@ -254,9 +261,15 @@ export default function SubscriptionsPage() {
             </div>
 
             {/* List */}
-            {loading ? (
-              <div className="py-10 text-center text-slate-500 text-sm">
-                Loading contracts...
+            {loadingState.isLoading && !subscriptions.length ? (
+              <div className="py-10 text-center text-slate-500 text-sm flex flex-col items-center justify-center gap-2">
+                <div className="w-6 h-6 rounded-full border-2 border-slate-800 border-t-blue-500 animate-spin"></div>
+                <span>{loadingState.message || "Loading contracts..."}</span>
+              </div>
+            ) : errorState.isError ? (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-xl space-y-1.5">
+                <p className="text-xs font-semibold">{errorState.error_message}</p>
+                <p className="text-[10px] text-slate-500 font-mono">Code: {errorState.error_code} | Trace: {errorState.trace_id}</p>
               </div>
             ) : filteredSubs.length === 0 ? (
               <div className="py-10 text-center text-slate-500 text-sm">

@@ -1,54 +1,10 @@
-export interface Subscription {
-  id: string;
-  invoice_number: string;
-  customer_name: string;
-  plan: 'Starter' | 'Professional' | 'Enterprise' | 'Custom';
-  renewal_date: string;
-  status: 'Active' | 'Expiring' | 'Expired' | 'Suspended';
-  amount: number;
-  currency: string;
-  billing_cycle: 'Monthly' | 'Quarterly' | 'Annual';
-  payment_terms: string;
-  created_at: string;
-}
+import { Subscription } from "@/types/subscription";
+import { Expense } from "@/types/expense";
+import { RevenueTrend, ExpenseBreakdown, DepartmentUsage } from "@/types/analytics";
+import { ARAgeingItem as ARAgeing } from "@/types/report";
 
-export interface Expense {
-  id: string;
-  employee_name: string;
-  category: 'Travel' | 'Accommodation' | 'Meals' | 'Equipment' | 'Training' | 'Miscellaneous';
-  amount: number;
-  date: string;
-  status: 'Approved' | 'Pending' | 'Rejected';
-  department: 'Engineering' | 'Sales' | 'Marketing' | 'HR' | 'Finance' | 'Operations';
-  notes: string;
-  receipt_url?: string;
-}
+export type { Subscription, Expense, RevenueTrend, ExpenseBreakdown, DepartmentUsage, ARAgeing };
 
-export interface RevenueTrend {
-  month: string;
-  mrr: number;
-  arr: number;
-  expenses: number;
-  newSubscribers: number;
-  churnRate: number;
-}
-
-export interface ExpenseBreakdown {
-  category: string;
-  amount: number;
-  color: string;
-}
-
-export interface DepartmentUsage {
-  department: string;
-  amount: number;
-}
-
-export interface ARAgeing {
-  bucket: string;
-  amount: number;
-  invoicesCount: number;
-}
 
 export const initialSubscriptions: Subscription[] = [
   {
