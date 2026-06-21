@@ -10,7 +10,13 @@ export async function GET() {
       success: true,
       message: "Subscriptions retrieved successfully",
       data: subscriptions,
-      metadata: { count: subscriptions.length }
+      metadata: { 
+        count: subscriptions.length,
+        page: 1,
+        page_size: subscriptions.length,
+        total: subscriptions.length,
+        has_next: false
+      }
     };
     return NextResponse.json(response);
   } catch (error: any) {

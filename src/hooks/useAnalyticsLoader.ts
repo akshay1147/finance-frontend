@@ -5,6 +5,7 @@ import { Expense } from "@/types/expense";
 import { LoadingState, createLoadingState } from "@/states/loading";
 import { ErrorState, createErrorState } from "@/states/error";
 import { getEndpoint } from "@/services/endpoint_registry";
+import { telemetryService } from "@/services/telemetry/telemetry_service";
 
 export function useAnalyticsLoader() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsPayload | null>(null);
@@ -14,6 +15,7 @@ export function useAnalyticsLoader() {
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
 
   const loadData = useCallback(async (forceRefresh = false) => {
+    const startTime = performance.now();
     try {
       setLoadingState(createLoadingState(true, "Fetching latest analytics streams..."));
       setErrorState(createErrorState(false));
@@ -33,7 +35,11 @@ export function useAnalyticsLoader() {
       }
       setLastRefreshed(new Date().toLocaleTimeString());
       setLoadingState(createLoadingState(false));
+
+      const duration = performance.now() - startTime;
+      telemetryService.trackDashboardPerformance("AnalyticsLoad", duration);
     } catch (err: any) {
+      telemetryService.trackRenderFailure("AnalyticsWidget", err);
       setErrorState(createErrorState(
         true,
         err.message || "An unexpected error occurred during analytics load.",

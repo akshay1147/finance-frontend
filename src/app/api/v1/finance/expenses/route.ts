@@ -10,7 +10,13 @@ export async function GET() {
       success: true,
       message: "Expenses retrieved successfully",
       data: expenses,
-      metadata: { count: expenses.length }
+      metadata: { 
+        count: expenses.length,
+        page: 1,
+        page_size: expenses.length,
+        total: expenses.length,
+        has_next: false
+      }
     };
     return NextResponse.json(response);
   } catch (error: any) {

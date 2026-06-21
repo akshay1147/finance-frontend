@@ -16,8 +16,12 @@ export function ResponsiveChartContainer({
   children,
   heightClass = "h-64 sm:h-72 md:h-80"
 }: Props) {
-  return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 flex flex-col justify-between overflow-hidden relative">
+    <div 
+      className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 flex flex-col justify-between overflow-hidden relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      tabIndex={0}
+      role="region"
+      aria-label={title}
+    >
       <div>
         <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">{title}</h3>
         {description && (
