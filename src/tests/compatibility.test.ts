@@ -1,7 +1,6 @@
-import { analyticsTransformer } from "@/services/analytics_transformer";
-import { queryClient } from "@/services/query_client";
-import { endpointRegistry } from "@/services/endpoint_registry";
-import { AnalyticsPayload } from "@/types/analytics";
+import { analyticsTransformer, LegacyAnalyticsPayload } from "../services/analytics_transformer";
+import { queryClient } from "../services/query_client";
+import { endpointRegistry } from "../services/endpoint_registry";
 
 describe("Backward Compatibility Tests", () => {
   beforeEach(() => {
@@ -9,7 +8,7 @@ describe("Backward Compatibility Tests", () => {
   });
 
   it("should transform old v1 analytics payload to new contract schema", () => {
-    const oldPayload = {
+    const oldPayload: LegacyAnalyticsPayload = {
       monthly_revenue: 168000,
       active_users: 1250,
       expense_list: [
@@ -17,7 +16,7 @@ describe("Backward Compatibility Tests", () => {
       ]
     };
 
-    const transformed = analyticsTransformer.transform(oldPayload as any);
+    const transformed = analyticsTransformer.transform(oldPayload);
 
     expect(transformed).toBeDefined();
     expect(transformed.mrr).toBe(168000);

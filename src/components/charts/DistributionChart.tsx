@@ -35,7 +35,7 @@ export function DistributionChart({ data, onSliceClick, heightClass = "h-60" }: 
               paddingAngle={4}
               dataKey="value"
               nameKey="label"
-              onClick={(entry) => onSliceClick?.(entry.label)}
+              onClick={(entry: any) => onSliceClick?.(entry.payload?.label || entry.name)}
               className={onSliceClick ? "cursor-pointer" : ""}
             >
               {data.map((entry, index) => (

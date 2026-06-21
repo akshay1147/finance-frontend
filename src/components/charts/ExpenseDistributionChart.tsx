@@ -3,7 +3,6 @@
 import React from "react";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 import { ExpenseBreakdown } from "@/types/analytics";
-import { ResponsiveChartContainer } from "./ResponsiveChartContainer";
 
 interface Props {
   data: ExpenseBreakdown[];
@@ -38,7 +37,7 @@ export function ExpenseDistributionChart({ data, onSliceClick }: Props) {
             paddingAngle={4}
             dataKey="amount"
             nameKey="category"
-            onClick={(entry) => onSliceClick?.(entry.category)}
+            onClick={(entry: any) => onSliceClick?.(entry.payload?.category || entry.name)}
             className="cursor-pointer"
           >
             {data.map((entry, index) => (

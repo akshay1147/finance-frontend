@@ -36,7 +36,7 @@ export function DepartmentUsageChart({ data, onBarClick }: Props) {
           dataKey="amount"
           fill="#3b82f6"
           radius={[4, 4, 0, 0]}
-          onClick={(entry) => onBarClick?.(entry.department)}
+          onClick={(entry: any) => onBarClick?.(entry.payload?.department)}
           className="cursor-pointer"
         >
           {data.map((entry, index) => (

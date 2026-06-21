@@ -1,6 +1,12 @@
 import { Subscription } from "@/types/subscription";
 import { Expense } from "@/types/expense";
 
+export interface LegacyAnalyticsPayload {
+  monthly_revenue: number;
+  active_users: number;
+  expense_list: Array<{ type: string; val: number }>;
+}
+
 export class AnalyticsTransformer {
   static calculateMRR(subscriptions: Subscription[]): number {
     return subscriptions
@@ -29,4 +35,17 @@ export class AnalyticsTransformer {
   static formatCurrency(amount: number, digits: number = 0): string {
     return amount.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
   }
+
+  transform(oldPayload: LegacyAnalyticsPayload) {
+    return {
+      mrr: oldPayload.monthly_revenue,
+      activeUsers: oldPayload.active_users,
+      departmentUsage: (oldPayload.expense_list || []).map((item) => ({
+        department: item.type,
+        amount: item.val
+      }))
+    };
+  }
 }
+
+export const analyticsTransformer = new AnalyticsTransformer();

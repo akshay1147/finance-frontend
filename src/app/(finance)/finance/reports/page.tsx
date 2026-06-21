@@ -108,7 +108,17 @@ export default function ReportsPage() {
           ];
         }
 
-        exportService.exportToCSV(data, `lti_finance_report_${reportType}_${dateRange}`);
+        const headers = Object.keys(data[0] || {});
+        const csvRows = data.map(row =>
+          headers.map(header => {
+            const val = row[header];
+            const strVal = val === null || val === undefined ? "" : String(val);
+            return `"${strVal.replace(/"/g, '""')}"`;
+          }).join(",")
+        );
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...csvRows].join("\n");
+
+        exportService.exportToCSV(`lti_finance_report_${reportType}_${dateRange}.csv`, csvContent);
       } catch (err) {
         console.error("Export failed", err);
       } finally {
