@@ -65,6 +65,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setCurrentRole = (role: Role) => {
     setRoleState(role);
     localStorage.setItem("lti_selected_role", role);
+    document.cookie = `lti_finance_role=${encodeURIComponent(role)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
   };
 
   const hasPermission = (module: string, action: string): boolean => {

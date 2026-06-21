@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, Suspense } from "react";
-import { getInvoices, Invoice } from "@/services/api";
+import { invoiceService } from "@/services/invoice_service";
+import { formatCurrency } from "@/services/finance_transformer";
+import type { Invoice } from "@/services/types";
 import StripePaymentForm from "@/components/payments/StripePaymentForm";
 import { 
   Lock, 
@@ -29,11 +31,7 @@ function ClientPayPageContent() {
     setLoading(true);
     const invNum = searchParams.get("invoice");
     if (invNum) {
-      const invoices = getInvoices();
-      const found = invoices.find(
-        (i) => i.invoice_number.toLowerCase() === invNum.toLowerCase()
-      );
-      setInvoice(found || null);
+      setInvoice(invoiceService.findByNumberSync(invNum));
     } else {
       setInvoice(null);
     }
@@ -56,13 +54,7 @@ function ClientPayPageContent() {
     setSuccessTxn(txnId);
   };
 
-  const formatUSD = (val: number, curr: "USD" | "INR" | "EUR") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: curr,
-      maximumFractionDigits: 2
-    }).format(val);
-  };
+  const formatAmount = (val: number, curr: "USD" | "INR" | "EUR") => formatCurrency(val, curr);
 
   if (loading) {
     return (
@@ -97,7 +89,7 @@ function ClientPayPageContent() {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Total Settled</span>
-              <span className="font-extrabold text-white">{formatUSD(invoice.total_amount, invoice.currency)}</span>
+              <span className="font-extrabold text-white">{formatAmount(invoice.total_amount, invoice.currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Stripe Transaction ID</span>
@@ -199,7 +191,7 @@ function ClientPayPageContent() {
           </div>
           <div className="bg-[#080d16] border border-slate-800/80 rounded-xl p-3.5 text-xs text-slate-400 text-left">
             Settlement status: <span className="text-emerald-400 font-semibold uppercase">{invoice.status}</span><br />
-            Total settled amount: <span className="text-slate-200 font-bold">{formatUSD(invoice.total_amount, invoice.currency)}</span>
+            Total settled amount: <span className="text-slate-200 font-bold">{formatAmount(invoice.total_amount, invoice.currency)}</span>
           </div>
           <Link
             href="/dashboard"
@@ -248,7 +240,7 @@ function ClientPayPageContent() {
                 <div className="text-right">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Total Due</div>
                   <div className="text-xl font-extrabold text-purple-400 mt-1">
-                    {formatUSD(invoice.total_amount, invoice.currency)}
+                    {formatAmount(invoice.total_amount, invoice.currency)}
                   </div>
                 </div>
               </div>
@@ -261,10 +253,10 @@ function ClientPayPageContent() {
                     <div key={idx} className="flex justify-between items-center p-3 rounded-xl bg-slate-950/20 border border-slate-900 text-xs">
                       <div>
                         <div className="font-semibold text-slate-300">{item.description}</div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">Qty {item.quantity} × {formatUSD(item.unit_price, invoice.currency)}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">Qty {item.quantity} × {formatAmount(item.unit_price, invoice.currency)}</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-slate-200">{formatUSD(item.total, invoice.currency)}</div>
+                        <div className="font-bold text-slate-200">{formatAmount(item.total, invoice.currency)}</div>
                         <div className="text-[9px] text-slate-500 font-medium">Includes {item.tax_code}</div>
                       </div>
                     </div>
@@ -276,16 +268,16 @@ function ClientPayPageContent() {
               <div className="border-t border-slate-800/60 pt-4 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-400">
                   <span>Subtotal</span>
-                  <span>{formatUSD(invoice.subtotal, invoice.currency)}</span>
+                  <span>{formatAmount(invoice.subtotal, invoice.currency)}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Tax Calculated</span>
-                  <span>{formatUSD(invoice.tax_amount, invoice.currency)}</span>
+                  <span>{formatAmount(invoice.tax_amount, invoice.currency)}</span>
                 </div>
                 <div className="border-t border-slate-800/40 my-1"></div>
                 <div className="flex justify-between text-sm font-bold text-white">
                   <span>Total Amount Due</span>
-                  <span className="text-purple-400">{formatUSD(invoice.total_amount, invoice.currency)}</span>
+                  <span className="text-purple-400">{formatAmount(invoice.total_amount, invoice.currency)}</span>
                 </div>
               </div>
             </div>

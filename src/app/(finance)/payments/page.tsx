@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { getPayments, Payment, getInvoices, Invoice, recordPayment } from "@/services/api";
+import React, { useEffect, useState, useCallback } from "react";
+import { apiClient } from "@/services/api_client";
+import { queryClient } from "@/services/query_client";
+import { invoiceService } from "@/services/invoice_service";
+import { computeTotalSettledUSD, formatUSD } from "@/services/finance_transformer";
+import type { Payment, Invoice } from "@/services/types";
 import { useRole } from "@/context/RoleContext";
 import { 
   DollarSign, 
@@ -34,14 +38,16 @@ export default function PaymentsPage() {
   const [paymentMethod, setPaymentMethod] = useState<"wire" | "card" | "ach" | "sepa" | "upi">("wire");
   const [referenceNumber, setReferenceNumber] = useState("");
 
-  const loadData = () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    setTimeout(() => {
-      setPayments(getPayments());
-      setInvoices(getInvoices());
-      setLoading(false);
-    }, 300);
-  };
+    const [paymentsRes, invoicesRes] = await Promise.all([
+      queryClient.fetch("payments-page", () => apiClient.getPayments()),
+      queryClient.fetch("invoices-page", () => apiClient.getInvoices()),
+    ]);
+    setPayments(paymentsRes.data ?? []);
+    setInvoices(invoicesRes.data ?? []);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -73,7 +79,7 @@ export default function PaymentsPage() {
     setFilteredPayments(result);
   }, [payments, search, methodFilter]);
 
-  const handleReconcileSubmit = (e: React.FormEvent) => {
+  const handleReconcileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInvoiceId) {
       alert("Please select an invoice to reconcile");
@@ -85,28 +91,26 @@ export default function PaymentsPage() {
     }
 
     try {
-      recordPayment(selectedInvoiceId, {
+      const response = await apiClient.recordPayment(selectedInvoiceId, {
         payment_method: paymentMethod,
         reference_number: referenceNumber,
       });
+      if (!response.success) {
+        alert(response.message);
+        return;
+      }
+      queryClient.invalidate("payments");
+      queryClient.invalidate("invoices");
       setReconcileOpen(false);
       setSelectedInvoiceId("");
       setReferenceNumber("");
       loadData();
-    } catch (err) {
+    } catch {
       alert("Failed to reconcile payment");
     }
   };
 
-  // Aggregations
-  const totalSettledUSD = payments.reduce((sum, p) => {
-    const toUSD = (amt: number, cur: string) => {
-      if (cur === "USD") return amt;
-      if (cur === "EUR") return amt * 1.08;
-      return amt * 0.012;
-    };
-    return sum + toUSD(p.amount, p.currency);
-  }, 0);
+  const totalSettledUSD = computeTotalSettledUSD(payments);
 
   const getMethodIcon = (method: string) => {
     switch (method) {
@@ -116,18 +120,7 @@ export default function PaymentsPage() {
     }
   };
 
-  // Get active unpaid invoices for manual reconciler
-  const unpaidInvoices = invoices.filter((i) => 
-    ["SENT", "VIEWED", "OVERDUE", "PARTIAL", "DISPUTED"].includes(i.status)
-  );
-
-  const formatUSD = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0
-    }).format(val);
-  };
+  const unpaidInvoices = invoiceService.getUnpaidInvoices();
 
   const canRecord = hasPermission("payments", "record");
 
