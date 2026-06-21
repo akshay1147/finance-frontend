@@ -236,9 +236,10 @@ const isBrowser = typeof window !== "undefined";
 
 function readStore<T>(key: string, seed: T[]): T[] {
   if (!isBrowser) return seed;
-  const stored = localStorage.getItem(key);
+  const storage = typeof localStorage !== "undefined" ? localStorage : { getItem: () => null, setItem: () => {} } as any;
+  const stored = storage.getItem(key);
   if (!stored) {
-    localStorage.setItem(key, JSON.stringify(seed));
+    storage.setItem(key, JSON.stringify(seed));
     return seed;
   }
   return JSON.parse(stored) as T[];
@@ -246,7 +247,8 @@ function readStore<T>(key: string, seed: T[]): T[] {
 
 function writeStore<T>(key: string, data: T[]): void {
   if (isBrowser) {
-    localStorage.setItem(key, JSON.stringify(data));
+    const storage = typeof localStorage !== "undefined" ? localStorage : { setItem: () => {} } as any;
+    storage.setItem(key, JSON.stringify(data));
   }
 }
 
