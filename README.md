@@ -54,3 +54,6 @@ npm run build
 * **Color Palette:** Curated Slate/Zinc dark backgrounds with deep royal blues, emerald green for success elements, amber for warning warnings, and rose for danger/cancellations.
 * **Micro-animations:** Added custom fade-in, slide-in, and zoom keyframes in `globals.css` to offer a premium, responsive feel.
 * **Chart Tooltips:** Custom themed tooltips for Recharts to ensure consistent dark-mode visuals.
+
+<!-- Trigger PR3 recalculation -->
+
