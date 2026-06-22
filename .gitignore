@@ -35,6 +35,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# documents
-/MODULE SAMPLE 1.pdf
-/week 1 module for jaya shree.docx
+# docx, pdf, and local backup files
+*.pdf
+*.docx
+/backup_docs/

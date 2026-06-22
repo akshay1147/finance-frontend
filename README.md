@@ -1,39 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📊 LTI Hub Portal 6 - Finance & Billing Frontend
 
-## Getting Started
+A premium, state-of-the-art Finance Dashboard and Reporting & Analytics hub built as part of the **LTI Hub Portal 6 Specification**. This module implements the frontend components for Subscription Management, Expense Claims, Financial/Operational Reports, and Interactive Visual Analytics.
 
-First, run the development server:
+---
 
+## 🛠️ Technology Stack
+* **Framework:** Next.js 14 (App Router)
+* **Language:** TypeScript
+* **Styling:** Tailwind CSS (Custom color configurations)
+* **Icons:** Lucide React
+* **Charts/Visualizations:** Recharts (Area, Line, Bar, Pie charts)
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+Ensure you have Node.js installed on your machine.
+
+### 2. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
+### 3. Run the Development Server
+```bash
+npm run dev
+```
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Build for Production
+To verify compilation and check linting rules:
+```bash
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 📂 Active Routes & Features
 
-To learn more about Next.js, take a look at the following resources:
+| Route | View Component | Key Features |
+|---|---|---|
+| `/` | **LTI Hub Gateway** | Entrypoint to launch the Portal 6 Finance dashboard. |
+| `/finance` | **Overview Dashboard** | KPI overview cards, MRR/ARR summary, and quick list of recent subscriptions/expenses. |
+| `/finance/subscriptions` | **Subscription Manager** | Searchable/filterable subscription directory with CRUD actions and detail view. |
+| `/finance/expenses` | **Expense Claims Manager** | Manage claims, submit new reimbursements, and approve/reject workflows. |
+| `/finance/reports` | **Reports Hub** | P&L statements, Tax Liabilities, AR Ageing, and Operational Department reports. |
+| `/finance/analytics` | **Visual Analytics** | Rich dashboards visualizing MRR Trends, Expense Distribution, and Churn Rate. |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 💎 Design and Aesthetics
+* **Color Palette:** Curated Slate/Zinc dark backgrounds with deep royal blues, emerald green for success elements, amber for warning warnings, and rose for danger/cancellations.
+* **Micro-animations:** Added custom fade-in, slide-in, and zoom keyframes in `globals.css` to offer a premium, responsive feel.
+* **Chart Tooltips:** Custom themed tooltips for Recharts to ensure consistent dark-mode visuals.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-<!-- Trigger PR recalculation -->
+<!-- Trigger PR3 recalculation -->
 

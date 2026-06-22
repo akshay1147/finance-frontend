@@ -1,22 +1,35 @@
-export interface ApiError {
-  trace_id: string;
-  error_code: string;
-  remediation: string;
-  message?: string;
+export interface PaginationMetadata {
+  page?: number;
+  page_size?: number;
+  total?: number;
+  has_next?: boolean;
+  count?: number;
+  [key: string]: any;
 }
 
-export interface ApiResponse<T = unknown> {
+export interface ApiError {
+  code?: string;
+  message?: string;
+  field?: string;
+  trace_id?: string;
+  request_id?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  remediation?: string;
+  error_code?: string;
+}
+
+export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
-  data: T | null;
-  metadata?: Record<string, unknown>;
+  data?: T | null;
+  metadata?: PaginationMetadata & Record<string, any>;
   errors?: ApiError[];
 }
 
 export function createSuccessResponse<T>(
   data: T,
   message = "OK",
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, any>
 ): ApiResponse<T> {
   return { success: true, message, data, metadata };
 }
